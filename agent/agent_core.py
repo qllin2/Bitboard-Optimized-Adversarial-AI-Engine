@@ -21,7 +21,6 @@ BLUE_DIRECTIONS = [
     Direction.Left, Direction.Right
 ]
 
-
 class Node:
     def __init__(self, state, parent=None, action=None, exploration_weight=1.0):
         self.state = state
@@ -32,7 +31,6 @@ class Node:
         self.total_reward = [0.0, 0.0]
         self.exploration_weight = exploration_weight
 
-        # 收集所有合法动作
         self.untried_actions = []
         legal_actions = state.get_legal_actions()
         for action_set in legal_actions.values():
@@ -61,7 +59,6 @@ class Node:
         explore = self.exploration_weight * math.sqrt(
             math.log(self.visits) / child.visits
         )
-        # 强化：奖励纵向推进和跳跃
         bonus = 0
         if isinstance(child.action, MoveAction):
             start = child.action.coord
@@ -98,7 +95,6 @@ class Node:
                 self.total_reward[1] += (1 - reward)
                 self.total_reward[0] += reward
 
-
 class GameState:
     def __init__(self, last_move, board):
         self.last_move = last_move
@@ -111,7 +107,6 @@ class GameState:
         frogs = [coord for coord, cell_state in self.board._state.items()
                  if cell_state.state == color]
         for frog in frogs:
-            # 到达终点的青蛙不再移动
             if (color == PlayerColor.RED and frog.r == 7) or \
                (color == PlayerColor.BLUE and frog.r == 0):
                 continue
@@ -209,11 +204,7 @@ class GameState:
                        if cell_state.state == PlayerColor.RED and coord.r == 7)
         blue_goal = sum(1 for coord, cell_state in self.board._state.items()
                         if cell_state.state == PlayerColor.BLUE and coord.r == 0)
-        if red_goal >= 6 or blue_goal >= 6:
-            return True
-        if self.board.turn_count >= 150:
-            return True
-        return False
+        return red_goal >= 6 or blue_goal >= 6 or self.board.turn_count >= 150
 
     def apply_action(self, action):
         from referee.game.board import Board
@@ -223,8 +214,7 @@ class GameState:
         return GameState(last_move=action, board=new_board)
 
     def evaluate(self, my_color):
-        my_score = 0
-        opp_score = 0
+        my_score, opp_score = 0, 0
         for coord, cell_state in self.board._state.items():
             if my_color == PlayerColor.RED:
                 if cell_state.state == PlayerColor.RED:
@@ -238,6 +228,24 @@ class GameState:
                     opp_score += coord.r
         return my_score - opp_score
 
+def minimax(state, depth, maximizing, my_color):
+    if state.is_terminal() or depth == 0:
+        return state.evaluate(my_color)
+    actions = []
+    for action_set in state.get_legal_actions().values():
+        actions.extend(action_set)
+    if not actions:
+        return state.evaluate(my_color)
+    if maximizing:
+        value = float('-inf')
+        for action in actions:
+            value = max(value, minimax(state.apply_action(action), depth - 1, False, my_color))
+        return value
+    else:
+        value = float('inf')
+        for action in actions:
+            value = min(value, minimax(state.apply_action(action), depth - 1, True, my_color))
+        return value
 
 class MCTS:
     def __init__(self, state, iterations=1000, simulation_depth=50):
@@ -266,24 +274,24 @@ class MCTS:
         state = node.state
         depth = 0
         while not state.is_terminal() and depth < self.simulation_depth:
-            legal_actions_dict = state.get_legal_actions()
-            flat_actions = []
-            for action_set in legal_actions_dict.values():
-                flat_actions.extend(action_set)
-            if not flat_actions:
+            if depth >= 30:
+                eval_score = minimax(state, 2, True, self.root.state.board.turn_color)
+                return min(1.0, max(0.0, (eval_score + 50) / 100))
+            legal_actions = []
+            for action_set in state.get_legal_actions().values():
+                legal_actions.extend(action_set)
+            if not legal_actions:
                 break
-            action = random.choice(flat_actions)
-            state = state.apply_action(action)
+            state = state.apply_action(random.choice(legal_actions))
             depth += 1
         eval_score = state.evaluate(self.root.state.board.turn_color)
-        normalized = (eval_score + 50) / 100
-        return min(1.0, max(0.0, normalized))
+        return min(1.0, max(0.0, (eval_score + 50) / 100))
 
     def backpropagate(self, node, reward):
-        current = node
-        while current is not None:
-            current.update(reward)
-            current = current.parent
+        while node:
+            node.update(reward)
+            node = node.parent
             reward = 1 - reward
+
 
 
