@@ -53,7 +53,7 @@ class Agent:
         current_state = GameState(last_move=None, board=self._board)
 
         # 使用MCTS算法选择最佳动作
-        mcts = MCTS(current_state, iterations=100)
+        mcts = MCTS(current_state, iterations=50)
         best_action = mcts.search()
 
         return best_action
