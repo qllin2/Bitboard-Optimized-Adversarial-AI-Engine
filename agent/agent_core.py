@@ -5,12 +5,14 @@ from referee.game.player import PlayerColor
 from referee.game.coord import Direction
 from referee.game.actions import MoveAction, GrowAction
 
+# All 8 directions used for growth and movement
 ALL_DIRECTIONS = [
     Direction.Up, Direction.UpRight, Direction.Right,
     Direction.DownRight, Direction.Down, Direction.DownLeft,
     Direction.Left, Direction.UpLeft
 ]
 
+# Movement directions for RED and BLUE frogs
 RED_DIRECTIONS = [
     Direction.Down, Direction.DownLeft, Direction.DownRight,
     Direction.Left, Direction.Right
@@ -21,6 +23,7 @@ BLUE_DIRECTIONS = [
     Direction.Left, Direction.Right
 ]
 
+# Node class for MCTS tree structure
 class Node:
     def __init__(self, state, parent=None, action=None, exploration_weight=1.0):
         self.state = state
@@ -31,6 +34,7 @@ class Node:
         self.total_reward = [0.0, 0.0]
         self.exploration_weight = exploration_weight
 
+        # Generate untried actions at initialization
         self.untried_actions = []
         legal_actions = state.get_legal_actions()
         for action_set in legal_actions.values():
@@ -40,18 +44,15 @@ class Node:
         return len(self.untried_actions) == 0
 
     def expand(self) -> "Node":
+        # Expand node by applying an untried action
         action = self.untried_actions.pop()
         next_state = self.state.apply_action(action)
-        child = Node(
-            state=next_state,
-            parent=self,
-            action=action,
-            exploration_weight=self.exploration_weight
-        )
+        child = Node(next_state, self, action, self.exploration_weight)
         self.children.append(child)
         return child
 
     def ucb_score(self, child: "Node") -> float:
+        # UCB1 with custom bonus terms for progress, jumping, and goal proximity
         if child.visits == 0:
             return float('inf')
         idx = 0 if self.state.board.turn_color == PlayerColor.RED else 1
@@ -83,6 +84,7 @@ class Node:
         return max(self.children, key=lambda c: self.ucb_score(c))
 
     def update(self, reward: float):
+        # Update reward and visit count with alternating perspective
         self.visits += 1
         if self.parent is None:
             self.total_reward[0] += reward
@@ -95,6 +97,7 @@ class Node:
                 self.total_reward[1] += (1 - reward)
                 self.total_reward[0] += reward
 
+# GameState represents current board state and legal actions
 class GameState:
     def __init__(self, last_move, board):
         self.last_move = last_move
@@ -103,6 +106,7 @@ class GameState:
         self.actions = defaultdict(set)
 
     def get_legal_actions(self):
+        # Generate all legal Move/Grow actions
         color = self.board.turn_color
         frogs = [coord for coord, cell_state in self.board._state.items()
                  if cell_state.state == color]
@@ -118,6 +122,7 @@ class GameState:
         return self.actions
 
     def single_move(self, coord, directions):
+        # Add single-direction moves to action set
         for direction in directions:
             neighbor = self.plus_no_wrap(coord, direction)
             if neighbor and self.is_valid_coord(neighbor):
@@ -129,6 +134,7 @@ class GameState:
                     continue
 
     def jump_move(self, current_pos, path, directions):
+        # Recursively explore jump paths
         try:
             if self.board[current_pos].state != self.board.turn_color:
                 return
@@ -155,6 +161,7 @@ class GameState:
                     continue
 
     def grow_move(self, coord):
+        # Add GrowAction if adjacent empty cell is found
         for direction in ALL_DIRECTIONS:
             neighbor = self.plus_no_wrap(coord, direction)
             if neighbor and self.is_valid_coord(neighbor):
@@ -166,6 +173,7 @@ class GameState:
                     continue
 
     def evaluate_action(self, action):
+        # Assign score to action based on progress and goal proximity
         score = 1
         if isinstance(action, MoveAction):
             start = action.coord
@@ -190,6 +198,7 @@ class GameState:
 
     @staticmethod
     def plus_no_wrap(coord, direction):
+        # Safe coordinate addition without wrapping
         try:
             return coord + direction
         except ValueError:
@@ -200,6 +209,7 @@ class GameState:
         return 0 <= coord.r < 8 and 0 <= coord.c < 8
 
     def is_terminal(self):
+        # Check game-end conditions: 6 frogs at goal or 150 turns
         red_goal = sum(1 for coord, cell_state in self.board._state.items()
                        if cell_state.state == PlayerColor.RED and coord.r == 7)
         blue_goal = sum(1 for coord, cell_state in self.board._state.items()
@@ -207,6 +217,7 @@ class GameState:
         return red_goal >= 6 or blue_goal >= 6 or self.board.turn_count >= 150
 
     def apply_action(self, action):
+        # Clone board and apply action
         from referee.game.board import Board
         new_board = Board(initial_state=self.board._state.copy(),
                           initial_player=self.board.turn_color)
@@ -214,6 +225,7 @@ class GameState:
         return GameState(last_move=action, board=new_board)
 
     def evaluate(self, my_color):
+        # Simple heuristic: reward frogs close to their goal
         my_score, opp_score = 0, 0
         for coord, cell_state in self.board._state.items():
             if my_color == PlayerColor.RED:
@@ -228,6 +240,7 @@ class GameState:
                     opp_score += coord.r
         return my_score - opp_score
 
+# Depth-limited minimax for simulation or late-game precision
 def minimax(state, depth, maximizing, my_color):
     if state.is_terminal() or depth == 0:
         return state.evaluate(my_color)
@@ -247,6 +260,7 @@ def minimax(state, depth, maximizing, my_color):
             value = min(value, minimax(state.apply_action(action), depth - 1, True, my_color))
         return value
 
+# MCTS controller class
 class MCTS:
     def __init__(self, state, iterations=1000, simulation_depth=50):
         self.root = Node(state)
@@ -266,11 +280,11 @@ class MCTS:
         while not current.state.is_terminal():
             if current.untried_actions:
                 return current.expand()
-            else:
-                current = current.select_child()
+            current = current.select_child()
         return current
 
     def simulate(self, node):
+        # Mixed simulation: random rollout + minimax for deeper levels
         state = node.state
         depth = 0
         while not state.is_terminal() and depth < self.simulation_depth:
@@ -291,7 +305,8 @@ class MCTS:
         while node:
             node.update(reward)
             node = node.parent
-            reward = 1 - reward
+            reward = 1 - reward  # Alternate perspective on reward
+
 
 
 
