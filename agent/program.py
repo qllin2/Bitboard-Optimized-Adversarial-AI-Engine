@@ -3,7 +3,8 @@
 
 from referee.game import PlayerColor, Coord, Direction, \
     Action, MoveAction, GrowAction
-    
+from .agent_core import Node, MCTS, GameState
+from referee.game.exceptions import IllegalActionException
 
 class Agent:
     """
@@ -17,6 +18,7 @@ class Agent:
         Any setup and/or precomputation should be done here.
         """
         self._color = color
+        self._board = None
         match color:
             case PlayerColor.RED:
                 print("Testing: I am playing as RED")
@@ -33,16 +35,29 @@ class Agent:
         # the agent is playing as BLUE or RED. Obviously this won't work beyond
         # the initial moves of the game, so you should use some game playing
         # technique(s) to determine the best action to take.
-        match self._color:
-            case PlayerColor.RED:
-                print("Testing: RED is playing a MOVE action")
-                return MoveAction(
-                    Coord(0, 3),
-                    [Direction.Down]
-                )
-            case PlayerColor.BLUE:
-                print("Testing: BLUE is playing a GROW action")
-                return GrowAction()
+        #match self._color:
+         #   case PlayerColor.RED:
+          #      print("Testing: RED is playing a MOVE action")
+           #     return MoveAction(
+            #        Coord(0, 3),
+             #       [Direction.Down]
+              #  )
+            #case PlayerColor.BLUE:
+             #   print("Testing: BLUE is playing a GROW action")
+              #  return GrowAction()
+        if self._board is None:
+            from referee.game.board import Board
+            self._board = Board()
+
+        # 创建当前游戏状态
+        current_state = GameState(last_move=None, board=self._board)
+
+        # 使用MCTS算法选择最佳动作
+        mcts = MCTS(current_state, iterations=50)
+        best_action = mcts.search()
+
+        return best_action
+
 
     def update(self, color: PlayerColor, action: Action, **referee: dict):
         """
@@ -54,10 +69,31 @@ class Agent:
         # which type of action was played and print out the details of the
         # action for demonstration purposes. You should replace this with your
         # own logic to update your agent's internal game state representation.
-        match action:
+        """match action:
             case MoveAction(coord, dirs):
                 dirs_text = ", ".join([str(dir) for dir in dirs])
                 print(f"Testing: {color} played MOVE action:")
+                print(f"  Coord: {coord}")
+                print(f"  Directions: {dirs_text}")
+            case GrowAction():
+                print(f"Testing: {color} played GROW action")
+            case _:
+                raise ValueError(f"Unknown action type: {action}")"""
+        # 更新内部棋盘状态
+        if self._board is None:
+            from referee.game.board import Board
+            self._board = Board()
+
+        try:
+            self._board.apply_action(action)
+        except IllegalActionException as e:
+            print(f"Warning: Illegal action received in update: {e}")
+
+        # 打印调试信息
+        match action:
+            case MoveAction(coord, dirs):
+                dirs_text = ", ".join([str(dir) for dir in dirs])
+                print(f"Testing: {color} played MOVE action")
                 print(f"  Coord: {coord}")
                 print(f"  Directions: {dirs_text}")
             case GrowAction():
