@@ -4,7 +4,7 @@
 from referee.game import PlayerColor, Coord, Direction, \
     Action, MoveAction, GrowAction
 from .bitboard import Bitboard
-from agent.alpha_beta_agent import alpha_beta_search 
+from .alpha_beta_agent import alpha_beta_search 
 import math
 
 # 定义搜索深度
