@@ -8,7 +8,7 @@ from agent.alpha_beta_agent import alpha_beta_search
 import math
 
 # 定义搜索深度
-SEARCH_DEPTH = 4 # 您可以根据需要调整这个值
+SEARCH_DEPTH = 6 # 您可以根据需要调整这个值
 
 class Agent:
     """
@@ -51,31 +51,7 @@ class Agent:
             maximizing_player_color=self._color, # 当前轮到我方行动
             eval_player_color=self._color       # 评估函数从我方视角
         )
-
-        if best_action is None:
-            print(f"Agent {self._color}: Alpha-Beta returned no best action. Falling back to a default move.")
-            legal_moves = self._board.get_legal_moves(self._color)
-            if not legal_moves:
-                print(f"Agent {self._color}: CRITICAL - No legal moves found. Returning GrowAction as last resort.")
-                # 这理论上不应该发生，因为 get_legal_moves 总是包含 GrowAction
-                return GrowAction() 
-            
-            # 简单的备用策略: 优先选择MoveAction，否则选择第一个（可能是GrowAction）
-            move_actions = [m for m in legal_moves if isinstance(m, MoveAction)]
-            if move_actions:
-                best_action = move_actions[0]
-                print(f"Agent {self._color}: Fallback - Chose first MoveAction: {best_action}")
-            else:
-                best_action = legal_moves[0] # 应该是 GrowAction
-                print(f"Agent {self._color}: Fallback - Chose first GrowAction: {best_action}")
-        
         print(f"Agent {self._color}: Chosen action by Alpha-Beta: {best_action} with eval score: {eval_score}")
-        
-        # 确保返回的是一个有效的Action对象, 尽管alpha_beta_search应该保证这一点
-        if not isinstance(best_action, Action):
-             print(f"Agent {self._color}: CRITICAL - Alpha-Beta returned non-Action: {best_action}. Defaulting to Grow.")
-             return GrowAction()
-
         return best_action
 
     def update(self, color: PlayerColor, action: Action, **referee: dict):

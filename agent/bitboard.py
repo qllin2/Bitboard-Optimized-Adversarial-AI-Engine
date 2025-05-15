@@ -391,9 +391,9 @@ class Bitboard:
         if self.turns >= MAX_TURNS:
             return True
         for coord in self.red_frog_coords:
-            if coord.r != 0:
+            if coord.r != 7:
                 return False
         for coord in self.blue_frog_coords:
-            if coord.r != 7:
+            if coord.r != 0:
                 return False
         return True

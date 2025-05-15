@@ -20,10 +20,5 @@ metadata = {
             "student_id": "1105457",
             "email": "qllin2@student.unimelb.edu.au" # Must be @student.unimelb.edu.au address
         },
-        {
-            "name": "Jinglun Xu",
-            "student_id": "1519807",
-            "email": "jinglun@student.unimelb.edu.au" # Must be @student.unimelb.edu.au address
-        }
     ],
 }
