@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+.venv/
+.venvdev/
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Logs
+*.log
+
+# gamerule pdf
+AI_2025_Game_v1.1.pdf
+AI_2025_Project_PartB.pdf
