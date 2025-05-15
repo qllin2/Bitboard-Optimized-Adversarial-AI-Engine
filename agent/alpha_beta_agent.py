@@ -2,16 +2,16 @@ from .bitboard import Bitboard, PIECE_LILYPAD
 from referee.game import PlayerColor, Coord, Action
 import math
 
-# 简单的评估函数
-# 红方 (RED) 的目标是 y=7 (第8行)
-# 蓝方 (BLUE) 的目标是 y=0 (第1行)
+# a simple evaluation function
+# the target row for the red team is y=7 (the 8th row)
+# the target row for the blue team is y=0 (the 1st row)
 RED_TARGET_ROW = 7
 BLUE_TARGET_ROW = 0
 
 def simple_evaluate(board: Bitboard, player_color: PlayerColor) -> float:
     """
-    一个简单的评估函数。
-    评估逻辑：(己方青蛙到目标底线的距离总和) - (对方青蛙到目标底线的距离总和)
+    a simple evaluation function.
+    evaluation logic: (the sum of the distance of the red frogs to the target row) - (the sum of the distance of the blue frogs to the target row)
     """
     score = 0.0
 
@@ -26,14 +26,13 @@ def simple_evaluate(board: Bitboard, player_color: PlayerColor) -> float:
         for coord in board.red_frog_coords:
             score += RED_TARGET_ROW - coord.r
 
-    score -= board.count_pieces(PIECE_LILYPAD) * 0.05
+    score += board.count_pieces(PIECE_LILYPAD) * 0.05
     
     return score
 
-# 置换表 (Transposition Table)
-# 可以先用一个简单的字典实现
-# 键是棋盘状态的哈希值，值可以是 (depth, score, flag, best_move)
-# flag: 0 (精确值), 1 (alpha/下限), 2 (beta/上限)
+# transposition table (Transposition Table)
+# the key is the hash value of the board state, and the value is (depth, score, flag, best_move)
+# flag: 0 (exact value), 1 (alpha/lowerbound), 2 (beta/upperbound)
 transposition_table = {}
 
 def alpha_beta_search(
@@ -41,32 +40,32 @@ def alpha_beta_search(
     depth: int, 
     alpha: float, 
     beta: float, 
-    maximizing_player_color: PlayerColor, # 当前正在做决策的玩家 (轮到谁走)
-    eval_player_color: PlayerColor       # 评估函数应从哪个玩家的视角进行评估
+    maximizing_player_color: PlayerColor, # the current player who is making the decision
+    eval_player_color: PlayerColor       # the player to evaluate
 ) -> tuple[float, Action | None]:
     """
-    Alpha-Beta 搜索函数。
-    返回 (评估分数, 最佳动作)
+    Alpha-Beta search function.
+    return (evaluation score, best action)
     """
     board_hash = current_board.current_hash
-    alpha_original = alpha # 保存原始 alpha 值，用于置换表存储
+    alpha_original = alpha # save the original alpha value, for transposition table storage
 
-    # 1. 置换表查询
+    # 1. transposition table lookup
     if board_hash in transposition_table:
         entry = transposition_table[board_hash]
         tt_depth, tt_score, tt_flag, tt_best_move = entry
         if tt_depth >= depth:
-            if tt_flag == 0: # 精确值
+            if tt_flag == 0: # exact value
                 return tt_score, tt_best_move
-            elif tt_flag == 1: # alpha/下限 (存储的是下限，所以可以用来提高 alpha)
+            elif tt_flag == 1: # alpha/lowerbound
                 alpha = max(alpha, tt_score)
-            elif tt_flag == 2: # beta/上限 (存储的是上限，所以可以用来降低 beta)
+            elif tt_flag == 2: # beta/upperbound
                 beta = min(beta, tt_score)
             
-            if alpha >= beta: # 如果更新后的alpha-beta边界导致剪枝
+            if alpha >= beta: # the updated alpha-beta boundary causes pruning
                 return tt_score, tt_best_move
 
-    # 2. 到达叶节点或指定深度
+    # 2. reach the leaf node or specified depth
     if depth == 0 or current_board.is_game_over():
         return simple_evaluate(current_board, eval_player_color), None
 
@@ -74,17 +73,16 @@ def alpha_beta_search(
     legal_moves = current_board.get_legal_moves(maximizing_player_color)
 
     if not legal_moves:
-        # 如果没有合法移动，通常意味着游戏结束或某种特殊状态
-        # 此时也应该返回当前局面的评估值
+        # if there are no legal moves, it usually means the game is over or some special state
         return simple_evaluate(current_board, eval_player_color), None
 
-    if maximizing_player_color == eval_player_color: # 当前是 Max 节点
+    if maximizing_player_color == eval_player_color: # the current node is a Max node
         max_eval = -math.inf
         for move in legal_moves:
             next_board = current_board.clone()
             next_board.apply_action(maximizing_player_color, move)
             
-            # 递归调用，注意下一层的 maximizing_player_color 会改变
+            # recursive call
             opponent_color = PlayerColor.RED if maximizing_player_color == PlayerColor.BLUE else PlayerColor.BLUE
             current_eval, _ = alpha_beta_search(next_board, depth - 1, alpha, beta, opponent_color, eval_player_color)
             
@@ -93,18 +91,18 @@ def alpha_beta_search(
                 best_move_for_this_node = move
             alpha = max(alpha, current_eval)
             if beta <= alpha:
-                break # Beta 剪枝
+                break # Beta pruning
         
-        # 存储到置换表
-        flag_to_store = 0 # 默认为精确值
-        if max_eval <= alpha_original: # 真实值 <= max_eval
-            flag_to_store = 2 # 上限
-        elif max_eval >= beta: # 真实值 >= max_eval (或者说 >= beta)
-            flag_to_store = 1 # 下限
+        # store to transposition table
+        flag_to_store = 0 # default is exact value
+        if max_eval <= alpha_original: # the real value <= max_eval
+            flag_to_store = 2 # upperbound
+        elif max_eval >= beta: # the real value >= max_eval (or >= beta)
+            flag_to_store = 1 # lowerbound
         transposition_table[board_hash] = (depth, max_eval, flag_to_store, best_move_for_this_node)
         
         return max_eval, best_move_for_this_node
-    else: # 当前是 Min 节点
+    else: # the current node is a Min node
         min_eval = math.inf
         for move in legal_moves:
             next_board = current_board.clone()
@@ -118,21 +116,14 @@ def alpha_beta_search(
                 best_move_for_this_node = move
             beta = min(beta, current_eval)
             if beta <= alpha:
-                break # Alpha 剪枝
+                break # Alpha pruning
         
-        # 存储到置换表
-        flag_to_store = 0 # 默认为精确值
-        if min_eval >= beta: # 如果 min_eval 导致或可能导致其父Max节点剪枝(beta剪枝)
-                               # 意味着该节点的真实值至少是 min_eval，因此 min_eval 是一个下限。
-            flag_to_store = 1 # 下限 (LOWERBOUND)
-        elif min_eval <= alpha_original: # 如果 min_eval <= alpha_original (父Max节点的alpha)
-                                       # 意味着该节点的真实值至多是 min_eval，因此 min_eval 是一个上限。
-            flag_to_store = 2 # 上限 (UPPERBOUND)
+        # store to transposition table
+        flag_to_store = 0 # default is exact value
+        if min_eval >= beta:
+            flag_to_store = 1
+        elif min_eval <= alpha_original:
+            flag_to_store = 2
         transposition_table[board_hash] = (depth, min_eval, flag_to_store, best_move_for_this_node)
 
         return min_eval, best_move_for_this_node
-
-
-# TODO: 实现置换表的存储逻辑
-
-# TODO: 之后可以改进评估函数，例如考虑青蛙到目标线的距离

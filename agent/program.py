@@ -7,8 +7,8 @@ from .bitboard import Bitboard
 from .alpha_beta_agent import alpha_beta_search 
 import math
 
-# 定义搜索深度
-SEARCH_DEPTH = 6 # 您可以根据需要调整这个值
+# define the search depth
+SEARCH_DEPTH = 6 # you can adjust this value as needed
 
 class Agent:
     """
@@ -38,18 +38,17 @@ class Agent:
         This method is called by the referee each time it is the agent's turn
         to take an action. It must always return an action object. 
         """
-        # 使用 self._board.turns 或者 self._board.ply_count 取决于您在bitboard.py中的实现
         print(f"Agent {self._color}: My turn. Current board turns: {self._board.turns}") 
-        # print(self._board) # 打印当前棋盘状态 (可选)
+        # print(self._board)
 
-        # 调用 Alpha-Beta 搜索
+        # call the alpha-beta search
         eval_score, best_action = alpha_beta_search(
             current_board=self._board,
             depth=SEARCH_DEPTH,
             alpha=-math.inf,
             beta=math.inf,
-            maximizing_player_color=self._color, # 当前轮到我方行动
-            eval_player_color=self._color       # 评估函数从我方视角
+            maximizing_player_color=self._color, # the current player
+            eval_player_color=self._color       # the player to evaluate
         )
         print(f"Agent {self._color}: Chosen action by Alpha-Beta: {best_action} with eval score: {eval_score}")
         return best_action
@@ -67,7 +66,7 @@ class Agent:
         # use Bitboard's apply_action method to update the board state
         self._board.apply_action(color, action)
 
-        # 以下的打印代码可以保留用于调试
+        # the following print code can be kept for debugging
         # match action:
         #     case MoveAction(coord, dirs):
         #         dirs_text = ", ".join([str(dir) for dir in dirs])
