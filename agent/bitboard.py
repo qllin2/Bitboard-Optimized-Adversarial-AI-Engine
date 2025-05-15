@@ -6,6 +6,7 @@ import random
 import collections
 
 BOARD_SIZE = constants.BOARD_N
+MAX_TURNS = constants.MAX_TURNS
 
 # define the piece types
 PIECE_RED = 0    # red frog
@@ -20,7 +21,7 @@ class Bitboard:
     
     ZOBRIST_TABLE = None # Class variable for the Zobrist hash table
     
-    def __init__(self):
+    def __init__(self) -> None:
         """initialize an empty Bitboard"""
         # initialize the Zobrist hash table
         Bitboard._init_zobrist_table()
@@ -34,17 +35,18 @@ class Bitboard:
         self.blue_frog_coords = set()
         # the current Zobrist hash value
         self.current_hash = 0
+        self.turns = 0
         
     
     @classmethod
-    def _init_zobrist_table(cls):
+    def _init_zobrist_table(cls) -> None:
         """initialize the Zobrist hash table, for efficient comparison of board states"""
         if cls.ZOBRIST_TABLE is None:
             cls.ZOBRIST_TABLE = [[[random.getrandbits(64) for _ in range(3)]
                                 for _ in range(BOARD_SIZE)]
                                 for _ in range(BOARD_SIZE)]
         
-    def setup_initial_position(self):
+    def setup_initial_position(self) -> None:
         """set the initial position of the game"""
         # clear all bitboards
         self.red_frogs = 0
@@ -53,6 +55,7 @@ class Bitboard:
         self.current_hash = 0
         self.red_frog_coords.clear()
         self.blue_frog_coords.clear()
+        self.turns = 0
         
         # set the red frogs: the first row, from column 2 to 7
         for c in range(1, 7):
@@ -73,32 +76,32 @@ class Bitboard:
         self.set_piece(7, 0, PIECE_LILYPAD)
         self.set_piece(7, 7, PIECE_LILYPAD)
         
-    def get_bit(self, bitboard, row, col):
+    def get_bit(self, bitboard: int, row: int, col: int) -> int:
         """get the bit value at the specified position"""
         index = row * BOARD_SIZE + col
         return (bitboard >> index) & 1
     
-    def set_bit(self, bitboard, row, col):
+    def set_bit(self, bitboard: int, row: int, col: int) -> int:
         """set the bit at the specified position to 1"""
         index = row * BOARD_SIZE + col
         return bitboard | (1 << index)
     
-    def clear_bit(self, bitboard, row, col):
+    def clear_bit(self, bitboard: int, row: int, col: int) -> int:
         """clear the bit at the specified position"""
         index = row * BOARD_SIZE + col
         return bitboard & ~(1 << index)
     
-    def is_empty(self, row, col):
+    def is_empty(self, row: int, col: int) -> bool:
         """check if the specified position is empty"""
         return not (self.get_bit(self.red_frogs, row, col) or 
                    self.get_bit(self.blue_frogs, row, col) or
                    self.get_bit(self.lilypads, row, col))
     
-    def has_lilypad(self, row, col):
+    def has_lilypad(self, row: int, col: int) -> bool:
         """check if the specified position has a lilypad"""
         return self.get_bit(self.lilypads, row, col) == 1
     
-    def get_piece(self, row, col):
+    def get_piece(self, row: int, col: int) -> int:
         """get the piece type at the specified position"""
         if self.get_bit(self.red_frogs, row, col):
             return PIECE_RED
@@ -108,7 +111,7 @@ class Bitboard:
             return PIECE_LILYPAD
         return None
 
-    def remove_piece(self, row, col):
+    def remove_piece(self, row: int, col: int) -> None:
         """remove the piece at the specified position"""
         piece = self.get_piece(row, col)
         if piece == PIECE_RED:
@@ -123,7 +126,7 @@ class Bitboard:
             self.lilypads = self.clear_bit(self.lilypads, row, col)
             self.current_hash ^= Bitboard.ZOBRIST_TABLE[row][col][PIECE_LILYPAD]
 
-    def set_piece(self, row, col, piece_type):
+    def set_piece(self, row: int, col: int, piece_type: int) -> None:
         """set a piece at the specified position"""
         # first update the hash value, by XORing the current position's all piece information
         old_piece = self.get_piece(row, col)
@@ -143,7 +146,7 @@ class Bitboard:
             self.lilypads = self.set_bit(self.lilypads, row, col)
             self.current_hash ^= Bitboard.ZOBRIST_TABLE[row][col][PIECE_LILYPAD]
     
-    def move_piece(self, from_row, from_col, to_row, to_col):
+    def move_piece(self, from_row: int, from_col: int, to_row: int, to_col: int) -> bool:
         """move the piece from the specified position to the target position"""
         piece = self.get_piece(from_row, from_col)
         if piece not in [PIECE_RED, PIECE_BLUE]:
@@ -159,7 +162,7 @@ class Bitboard:
             
         return True
 
-    def grow_lilypads(self, color):
+    def grow_lilypads(self, color: PlayerColor) -> bool:
         """grow the lilypads around the frogs"""
         changes = 0
         if color == PlayerColor.RED:
@@ -180,7 +183,7 @@ class Bitboard:
                         changes += 1
         return changes > 0
     
-    def get_legal_moves(self, color: PlayerColor):
+    def get_legal_moves(self, color: PlayerColor) -> list[Action]:
         """get all legal moves for the current player"""
         legal_moves = []
         frogs_bb = self.red_frogs if color == PlayerColor.RED else self.blue_frogs
@@ -263,7 +266,7 @@ class Bitboard:
         legal_moves.append(GrowAction())
         return legal_moves
     
-    def _direction_to_offset(self, direction):
+    def _direction_to_offset(self, direction: Direction) -> tuple[int, int]:
         """convert direction to row and column offset"""
         match direction:
             case Direction.Up:
@@ -283,7 +286,7 @@ class Bitboard:
             case Direction.DownRight:
                 return (1, 1)
     
-    def apply_action(self, color, action):
+    def apply_action(self, color: PlayerColor, action: Action) -> bool:
         """apply an action to the board"""
         if isinstance(action, MoveAction):
             coord, directions = action.coord, action.directions
@@ -309,6 +312,7 @@ class Bitboard:
                     target_col += 2 * dc
                 if not self.move_piece(curr_row, curr_col, target_row, target_col):
                     return False
+                self.turns += 1
                 return True # Successfully moved
             
             # single direction in the list: could be a 1-square step or a 2-square jump
@@ -322,14 +326,15 @@ class Bitboard:
                     target_row, target_col = curr_row + 2 * dr, curr_col + 2 * dc
                 if not self.move_piece(curr_row, curr_col, target_row, target_col):
                     return False
+                self.turns += 1
                 return True
-            
         elif isinstance(action, GrowAction):
-            return self.grow_lilypads(color)
-            
+            if self.grow_lilypads(color):
+                self.turns += 1
+                return True
         return False
     
-    def count_set_bits(self, bitboard):
+    def count_set_bits(self, bitboard: int) -> int:
         """count the number of set bits in the bitboard"""
         count = 0
         while bitboard:
@@ -337,7 +342,7 @@ class Bitboard:
             count += 1
         return count
     
-    def count_pieces(self, piece_type):
+    def count_pieces(self, piece_type: int) -> int:
         """count the number of pieces of the specified type"""
         if piece_type == PIECE_RED:
             return self.count_set_bits(self.red_frogs)
@@ -347,7 +352,7 @@ class Bitboard:
             return self.count_set_bits(self.lilypads)
         return 0
     
-    def __str__(self):
+    def __str__(self) -> str:
         """convert the board to a readable string"""
         result = []
         for row in range(BOARD_SIZE):
@@ -365,7 +370,7 @@ class Bitboard:
             result.append(' '.join(row_str))
         return '\n'.join(result)
     
-    def clone(self):
+    def clone(self) -> 'Bitboard':
         """create a complete copy of the current board state"""
         copy = Bitboard()
         copy.red_frogs = self.red_frogs
@@ -374,5 +379,21 @@ class Bitboard:
         copy.current_hash = self.current_hash
         copy.red_frog_coords = self.red_frog_coords.copy()
         copy.blue_frog_coords = self.blue_frog_coords.copy()
+        copy.turns = self.turns
         # no need to copy zobrist_table, it is the same for all instances
-        return copy 
+        return copy
+
+    def is_game_over(self) -> bool:
+        """
+        Checks if the game has reached a terminal state where a player has lost
+        by running out of frogs.
+        """
+        if self.turns >= MAX_TURNS:
+            return True
+        for coord in self.red_frog_coords:
+            if coord.r != 0:
+                return False
+        for coord in self.blue_frog_coords:
+            if coord.r != 7:
+                return False
+        return True
