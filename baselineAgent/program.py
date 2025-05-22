@@ -4,6 +4,11 @@
 from referee.game import PlayerColor, Coord, Direction, \
     Action, MoveAction, GrowAction
 from .bitboard import Bitboard
+from .alpha_beta_agent import alpha_beta_search 
+import math
+
+# define the search depth
+SEARCH_DEPTH = 5 # you can adjust this value as needed
 
 class Agent:
     """
@@ -24,39 +29,29 @@ class Agent:
         
         match color:
             case PlayerColor.RED:
-                print("Testing: I am playing as RED")
+                print(f"Agent: I am playing as RED. Search depth: {SEARCH_DEPTH}")
             case PlayerColor.BLUE:
-                print("Testing: I am playing as BLUE")
+                print(f"Agent: I am playing as BLUE. Search depth: {SEARCH_DEPTH}")
 
     def action(self, **referee: dict) -> Action:
         """
         This method is called by the referee each time it is the agent's turn
         to take an action. It must always return an action object. 
         """
+        print(f"Agent {self._color}: My turn. Current board turns: {self._board.turns}") 
+        # print(self._board)
 
-        # get all legal moves
-        legal_moves = self._board.get_legal_moves(self._color)
-        
-        # use simple strategy: if there is a move action, move, otherwise grow
-        move_actions = [action for action in legal_moves if isinstance(action, MoveAction)]
-        
-        match self._color:
-            case PlayerColor.RED:
-                if move_actions:
-                    selected_action = move_actions[0]  # select the first move action
-                    print(f"Testing: RED is playing a MOVE action: {selected_action}")
-                    return selected_action
-                else:
-                    print("Testing: RED is playing a GROW action")
-                    return GrowAction()
-            case PlayerColor.BLUE:
-                if move_actions:
-                    selected_action = move_actions[0]  # select the first move action
-                    print(f"Testing: BLUE is playing a MOVE action: {selected_action}")
-                    return selected_action
-                else:
-                    print("Testing: BLUE is playing a GROW action")
-                    return GrowAction()
+        # call the alpha-beta search
+        eval_score, best_action = alpha_beta_search(
+            current_board=self._board,
+            depth=SEARCH_DEPTH,
+            alpha=-math.inf,
+            beta=math.inf,
+            maximizing_player_color=self._color, # the current player
+            eval_player_color=self._color       # the player to evaluate
+        )
+        print(f"Agent {self._color}: Chosen action by Alpha-Beta: {best_action} with eval score: {eval_score}")
+        return best_action
 
     def update(self, color: PlayerColor, action: Action, **referee: dict):
         """
@@ -71,18 +66,19 @@ class Agent:
         # use Bitboard's apply_action method to update the board state
         self._board.apply_action(color, action)
 
-        # the following code is kept for debugging purposes
-        match action:
-            case MoveAction(coord, dirs):
-                dirs_text = ", ".join([str(dir) for dir in dirs])
-                print(f"Testing: {color} played MOVE action:")
-                print(f"  Coord: {coord}")
-                print(f"  Directions: {dirs_text}")
-            case GrowAction():
-                print(f"Testing: {color} played GROW action")
-            case _:
-                raise ValueError(f"Unknown action type: {action}")
+        # the following print code can be kept for debugging
+        # match action:
+        #     case MoveAction(coord, dirs):
+        #         dirs_text = ", ".join([str(dir) for dir in dirs])
+        #         # print(f"Testing: {color} played MOVE action:")
+        #         # print(f"  Coord: {coord}")
+        #         # print(f"  Directions: {dirs_text}")
+        #     case GrowAction():
+        #         # print(f"Testing: {color} played GROW action")
+        #     case _:
+        #         # This case should ideally not be reached if action is always valid
+        #         print(f"Agent {self._color}: Received unknown action type in update: {action}")
         
-        # print the current board state (optional, for debugging)
-        # print("Current Board:")
+        # print("Current Board after update:")
         # print(self._board)
+        # print(f"Board turns after update: {self._board.turns}")

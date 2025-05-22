@@ -7,15 +7,6 @@ import math
 # the target row for the blue team is y=0 (the 1st row)
 RED_TARGET_ROW = 7
 BLUE_TARGET_ROW = 0
-EXACT = 0
-LOWERBOUND = 1
-UPPERBOUND = 2
-
-# transposition table (Transposition Table)
-# the key is the hash value of the board state, and the value is (depth, score, flag, best_move)
-# flag: 0 (EXACT), 1 (LOWERBOUND), 2 (UPPERBOUND)
-transposition_table = {}
-
 
 def simple_evaluate(board: Bitboard, player_color: PlayerColor) -> float:
     """
@@ -35,16 +26,14 @@ def simple_evaluate(board: Bitboard, player_color: PlayerColor) -> float:
         for coord in board.red_frog_coords:
             score += RED_TARGET_ROW - coord.r
 
-    if board.get_winner() is not None:
-        if board.get_winner() == player_color:
-            return math.inf
-        else:
-            return -math.inf
-
     score += board.count_pieces(PIECE_LILYPAD) * 0.025
     
     return score
 
+# transposition table (Transposition Table)
+# the key is the hash value of the board state, and the value is (depth, score, flag, best_move)
+# flag: 0 (exact value), 1 (alpha/lowerbound), 2 (beta/upperbound)
+transposition_table = {}
 
 def alpha_beta_search(
     current_board: Bitboard, 
@@ -52,7 +41,7 @@ def alpha_beta_search(
     alpha: float, 
     beta: float, 
     maximizing_player_color: PlayerColor, # the current player who is making the decision
-    eval_player_color: PlayerColor,       # the player to evaluate
+    eval_player_color: PlayerColor       # the player to evaluate
 ) -> tuple[float, Action | None]:
     """
     Alpha-Beta search function.
@@ -60,18 +49,17 @@ def alpha_beta_search(
     """
     board_hash = current_board.current_hash
     alpha_original = alpha # save the original alpha value, for transposition table storage
-    beta_original = beta # save the original beta value, for transposition table storage
 
     # 1. transposition table lookup
     if board_hash in transposition_table:
         entry = transposition_table[board_hash]
         tt_depth, tt_score, tt_flag, tt_best_move = entry
-        if tt_depth >= depth: # tt remaining depth is greater than or equal to the current depth, means the tt is search deeper than the current depth
-            if tt_flag == EXACT: # exact value
+        if tt_depth >= depth:
+            if tt_flag == 0: # exact value
                 return tt_score, tt_best_move
-            elif tt_flag == LOWERBOUND: # alpha/lowerbound
+            elif tt_flag == 1: # alpha/lowerbound
                 alpha = max(alpha, tt_score)
-            elif tt_flag == UPPERBOUND: # beta/upperbound
+            elif tt_flag == 2: # beta/upperbound
                 beta = min(beta, tt_score)
             
             if alpha >= beta: # the updated alpha-beta boundary causes pruning
@@ -101,19 +89,17 @@ def alpha_beta_search(
             if current_eval > max_eval:
                 max_eval = current_eval
                 best_move_for_this_node = move
-            alpha = max(alpha, max_eval)
+            alpha = max(alpha, current_eval)
             if beta <= alpha:
                 break # Beta pruning
         
-        if board_hash not in transposition_table or depth >= transposition_table[board_hash][0]:
-            # store to transposition table
-            if max_eval <= alpha_original: # the real value <= max_eval (or <= alpha)
-                flag_to_store = UPPERBOUND # upperbound
-            elif max_eval >= beta_original: # the real value >= max_eval (or >= beta)
-                flag_to_store = LOWERBOUND # lowerbound
-            else:
-                flag_to_store = EXACT # exact value
-            transposition_table[board_hash] = (depth, max_eval, flag_to_store, best_move_for_this_node)
+        # store to transposition table
+        flag_to_store = 0 # default is exact value
+        if max_eval <= alpha_original: # the real value <= max_eval
+            flag_to_store = 2 # upperbound
+        elif max_eval >= beta: # the real value >= max_eval (or >= beta)
+            flag_to_store = 1 # lowerbound
+        transposition_table[board_hash] = (depth, max_eval, flag_to_store, best_move_for_this_node)
         
         return max_eval, best_move_for_this_node
     else: # the current node is a Min node
@@ -128,18 +114,16 @@ def alpha_beta_search(
             if current_eval < min_eval:
                 min_eval = current_eval
                 best_move_for_this_node = move
-            beta = min(beta, min_eval)
+            beta = min(beta, current_eval)
             if beta <= alpha:
                 break # Alpha pruning
         
-        if board_hash not in transposition_table or depth >= transposition_table[board_hash][0]:
-            # store to transposition table
-            if min_eval <= alpha_original:
-                flag_to_store = UPPERBOUND
-            elif min_eval >= beta_original:
-                flag_to_store = LOWERBOUND
-            else:
-                flag_to_store = EXACT
-            transposition_table[board_hash] = (depth, min_eval, flag_to_store, best_move_for_this_node)
+        # store to transposition table
+        flag_to_store = 0 # default is exact value
+        if min_eval >= beta:
+            flag_to_store = 1
+        elif min_eval <= alpha_original:
+            flag_to_store = 2
+        transposition_table[board_hash] = (depth, min_eval, flag_to_store, best_move_for_this_node)
 
         return min_eval, best_move_for_this_node

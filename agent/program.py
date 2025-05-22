@@ -8,7 +8,7 @@ from .alpha_beta_agent import alpha_beta_search
 import math
 
 # define the search depth
-SEARCH_DEPTH = 6 # you can adjust this value as needed
+SEARCH_DEPTH = 5 # you can adjust this value as needed
 
 class Agent:
     """
@@ -48,7 +48,7 @@ class Agent:
             alpha=-math.inf,
             beta=math.inf,
             maximizing_player_color=self._color, # the current player
-            eval_player_color=self._color       # the player to evaluate
+            eval_player_color=self._color        # the player to evaluate
         )
         print(f"Agent {self._color}: Chosen action by Alpha-Beta: {best_action} with eval score: {eval_score}")
         return best_action

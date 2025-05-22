@@ -390,10 +390,14 @@ class Bitboard:
         """
         if self.turns >= MAX_TURNS:
             return True
-        for coord in self.red_frog_coords:
-            if coord.r != 7:
-                return False
-        for coord in self.blue_frog_coords:
-            if coord.r != 0:
-                return False
-        return True
+        if self.get_winner() is not None:
+            return True
+        return False
+    
+    def get_winner(self) -> PlayerColor:
+        """get the winner of the game"""
+        if all(coord.r == 7 for coord in self.red_frog_coords):
+            return PlayerColor.RED
+        if all(coord.r == 0 for coord in self.blue_frog_coords):
+            return PlayerColor.BLUE
+        return None
