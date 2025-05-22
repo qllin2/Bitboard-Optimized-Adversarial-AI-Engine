@@ -11,13 +11,7 @@ EXACT = 0
 LOWERBOUND = 1
 UPPERBOUND = 2
 
-# transposition table (Transposition Table)
-# the key is the hash value of the board state, and the value is (depth, score, flag, best_move)
-# flag: 0 (EXACT), 1 (LOWERBOUND), 2 (UPPERBOUND)
-transposition_table = {}
-
-
-def simple_evaluate(board: Bitboard, player_color: PlayerColor) -> float:
+def evaluate_board(board: Bitboard, player_color: PlayerColor) -> float:
     """
     a simple evaluation function.
     evaluation logic: (the sum of the distance of the red frogs to the target row) - (the sum of the distance of the blue frogs to the target row)
@@ -53,6 +47,7 @@ def alpha_beta_search(
     beta: float, 
     maximizing_player_color: PlayerColor, # the current player who is making the decision
     eval_player_color: PlayerColor,       # the player to evaluate
+    transposition_table: dict
 ) -> tuple[float, Action | None]:
     """
     Alpha-Beta search function.
@@ -63,9 +58,11 @@ def alpha_beta_search(
     beta_original = beta # save the original beta value, for transposition table storage
 
     # 1. transposition table lookup
+    cached_best_move = None
     if board_hash in transposition_table:
         entry = transposition_table[board_hash]
         tt_depth, tt_score, tt_flag, tt_best_move = entry
+        cached_best_move = tt_best_move
         if tt_depth >= depth: # tt remaining depth is greater than or equal to the current depth, means the tt is search deeper than the current depth
             if tt_flag == EXACT: # exact value
                 return tt_score, tt_best_move
@@ -79,14 +76,24 @@ def alpha_beta_search(
 
     # 2. reach the leaf node or specified depth
     if depth == 0 or current_board.is_game_over():
-        return simple_evaluate(current_board, eval_player_color), None
+        return evaluate_board(current_board, eval_player_color), None
 
     best_move_for_this_node = None
     legal_moves = current_board.get_legal_moves(maximizing_player_color)
+    
+    # Move Ordering: Prioritize the cached best move from TT
+    if cached_best_move and cached_best_move in legal_moves:
+        legal_moves.remove(cached_best_move)
+        legal_moves.insert(0, cached_best_move)
 
     if not legal_moves:
         # if there are no legal moves, it usually means the game is over or some special state
-        return simple_evaluate(current_board, eval_player_color), None
+        return evaluate_board(current_board, eval_player_color), None
+
+    # Initialize best_move_for_this_node with the first legal move if available
+    # This ensures a move is returned even if all evaluations are equally bad.
+    if legal_moves:
+        best_move_for_this_node = legal_moves[0]
 
     if maximizing_player_color == eval_player_color: # the current node is a Max node
         max_eval = -math.inf
@@ -96,7 +103,7 @@ def alpha_beta_search(
             
             # recursive call
             opponent_color = PlayerColor.RED if maximizing_player_color == PlayerColor.BLUE else PlayerColor.BLUE
-            current_eval, _ = alpha_beta_search(next_board, depth - 1, alpha, beta, opponent_color, eval_player_color)
+            current_eval, _ = alpha_beta_search(next_board, depth - 1, alpha, beta, opponent_color, eval_player_color, transposition_table)
             
             if current_eval > max_eval:
                 max_eval = current_eval
@@ -123,7 +130,7 @@ def alpha_beta_search(
             next_board.apply_action(maximizing_player_color, move)
 
             opponent_color = PlayerColor.RED if maximizing_player_color == PlayerColor.BLUE else PlayerColor.BLUE
-            current_eval, _ = alpha_beta_search(next_board, depth - 1, alpha, beta, opponent_color, eval_player_color)
+            current_eval, _ = alpha_beta_search(next_board, depth - 1, alpha, beta, opponent_color, eval_player_color, transposition_table)
 
             if current_eval < min_eval:
                 min_eval = current_eval

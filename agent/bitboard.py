@@ -21,7 +21,7 @@ class Bitboard:
     
     ZOBRIST_TABLE = None # Class variable for the Zobrist hash table
     
-    def __init__(self) -> None:
+    def __init__(self, player_color: PlayerColor) -> None:
         """initialize an empty Bitboard"""
         # initialize the Zobrist hash table
         Bitboard._init_zobrist_table()
@@ -35,8 +35,8 @@ class Bitboard:
         self.blue_frog_coords = set()
         # the current Zobrist hash value
         self.current_hash = 0
-        self.turns = 0
-        
+        self.player_color = player_color
+        self.turns = 1 if player_color == PlayerColor.RED else 2
     
     @classmethod
     def _init_zobrist_table(cls) -> None:
@@ -372,7 +372,7 @@ class Bitboard:
     
     def clone(self) -> 'Bitboard':
         """create a complete copy of the current board state"""
-        copy = Bitboard()
+        copy = Bitboard(self.player_color)
         copy.red_frogs = self.red_frogs
         copy.blue_frogs = self.blue_frogs
         copy.lilypads = self.lilypads
