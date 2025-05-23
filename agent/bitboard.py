@@ -13,6 +13,11 @@ PIECE_RED = 0    # red frog
 PIECE_BLUE = 1   # blue frog
 PIECE_LILYPAD = 2 # lilypad
 
+# the target row for the red team is y=7 (the 8th row)
+# the target row for the blue team is y=0 (the 1st row)
+RED_TARGET_ROW = 7
+BLUE_TARGET_ROW = 0
+
 class Bitboard:
     """
     Use Bitboard to represent the board state of Freckers game.
@@ -401,3 +406,34 @@ class Bitboard:
         if all(coord.r == 0 for coord in self.blue_frog_coords):
             return PlayerColor.BLUE
         return None
+
+    def get_game_phase(self) -> str:
+        my_frogs = self.red_frog_coords if self.player_color == PlayerColor.RED else self.blue_frog_coords
+        
+        my_progress_values = []
+        for coords in my_frogs:
+            my_progress_values.append(coords.r if self.player_color == PlayerColor.RED else (BOARD_SIZE - 1 - coords.r))
+        my_progress_avg = sum(my_progress_values) / len(my_progress_values)
+
+        EARLY_GAME_TURN = 20
+        LATE_GAME_TURN = 30
+        avg_progress_mid_threshold = (BOARD_SIZE - 1) * 0.25
+        avg_progress_late_threshold = (BOARD_SIZE - 1) * 0.65
+        near_target_count = 0
+
+        if self.turns < EARLY_GAME_TURN or my_progress_avg < avg_progress_mid_threshold:
+            return "EARLY"
+        
+        if self.turns > LATE_GAME_TURN or my_progress_avg > avg_progress_late_threshold:
+            target_r = RED_TARGET_ROW if self.player_color == PlayerColor.RED else BLUE_TARGET_ROW
+            for coord in my_frogs:
+                if self.player_color == PlayerColor.RED and coord.r >= target_r - 1:
+                    near_target_count += 1
+                if self.player_color == PlayerColor.BLUE and coord.r <= target_r + 1:
+                    near_target_count += 1
+            if near_target_count >= 2:
+                return "LATE"
+            if self.turns > LATE_GAME_TURN:
+                return "MID_LATE"
+        
+        return "MID"

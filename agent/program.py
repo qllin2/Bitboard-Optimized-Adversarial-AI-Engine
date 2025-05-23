@@ -48,25 +48,24 @@ class Agent:
         
         # print(self._board)
         # call the alpha-beta search
-        self._transposition_table.clear()
+        # self._transposition_table.clear()
         remaining_turns = max(1, (MAX_TURNS - self._board.turns) / 2)
         time_budget = None
         time_remaining = referee["time_remaining"]
+        game_phase = self._board.get_game_phase()
         if time_remaining is not None:
             time_budget = time_remaining / remaining_turns
-            if self._board.turns < 5:
-                time_budget *= 0.5
-            elif self._board.turns >= 5 and self._board.turns < 10:
-                time_budget *= 0.7
-            elif self._board.turns >= 10 and self._board.turns < 20:
-                time_budget *= 1.0
-            elif self._board.turns >= 20 and self._board.turns < 40:
-                time_budget *= 1.2
-            elif self._board.turns >= 40:
+            if game_phase == "EARLY":
+                time_budget *= 0.8
+            elif game_phase == "MID":
+                time_budget *= 1
+            elif game_phase == "MID_LATE":
                 time_budget *= 1.5
+            elif game_phase == "LATE":
+                time_budget *= 2
 
-            time_budget = min(time_budget, 5.0) # 5 seconds
-            time_budget = max(time_budget, 0.5) # 0.5 seconds
+            time_budget = min(time_budget, 3)
+            time_budget = max(time_budget, 0.05)
 
         thinking_start_time = time.process_time()
         current_board = self._board.clone()
@@ -76,6 +75,7 @@ class Agent:
         print(f"Agent {self._color}: Current board turns: {current_board.turns}")
         print(f"Agent {self._color}: Thinking start time: {thinking_start_time}")
         print(f"Agent {self._color}: Time remaining: {time_remaining} seconds")
+        print(f"Agent {self._color}: Game phase: {game_phase}")
 
         for current_depth_limit in range(1, 10):
             if (time.process_time() - thinking_start_time) > time_budget:

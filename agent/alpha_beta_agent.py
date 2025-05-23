@@ -1,43 +1,74 @@
 from .bitboard import Bitboard, PIECE_LILYPAD
-from referee.game import PlayerColor, Coord, Action
+from referee.game import PlayerColor, Coord, Action, constants
 import math
 
-# a simple evaluation function
-# the target row for the red team is y=7 (the 8th row)
-# the target row for the blue team is y=0 (the 1st row)
-RED_TARGET_ROW = 7
-BLUE_TARGET_ROW = 0
+BOARD_N = constants.BOARD_N
 EXACT = 0
 LOWERBOUND = 1
 UPPERBOUND = 2
 
 def evaluate_board(board: Bitboard, player_color: PlayerColor) -> float:
     """
-    a simple evaluation function.
-    evaluation logic: (the sum of the distance of the red frogs to the target row) - (the sum of the distance of the blue frogs to the target row)
+    a evaluation function.
     """
-    score = 0.0
-
-    if player_color == PlayerColor.RED:
-        for coord in board.red_frog_coords:
-            score -= RED_TARGET_ROW - coord.r
-        for coord in board.blue_frog_coords:
-            score += coord.r - BLUE_TARGET_ROW
-    else: # player_color == PlayerColor.BLUE
-        for coord in board.blue_frog_coords:
-            score -= coord.r - BLUE_TARGET_ROW
-        for coord in board.red_frog_coords:
-            score += RED_TARGET_ROW - coord.r
-
     if board.get_winner() is not None:
         if board.get_winner() == player_color:
             return math.inf
         else:
             return -math.inf
-
-    score += board.count_pieces(PIECE_LILYPAD) * 0.025
+    if board.is_game_over() and board.get_winner() is None: # draw
+        return 0.0
     
-    return score
+    my_color = player_color
+
+    if player_color == PlayerColor.RED:
+        W_PROGRESSION = 10
+        W_OPPONENT_PROGRESSION = -3
+        W_MOBILITY = 0.25
+        W_STRAGGLER = -5
+    else:
+        W_PROGRESSION = 10
+        W_OPPONENT_PROGRESSION = -8
+        W_MOBILITY = 0.25
+        W_STRAGGLER = -5
+
+    w_progression = W_PROGRESSION
+    w_opponent_progression = W_OPPONENT_PROGRESSION
+    w_mobility = W_MOBILITY
+    w_straggler = W_STRAGGLER
+
+    opponent_color = PlayerColor.RED if player_color == PlayerColor.BLUE else PlayerColor.BLUE
+    # frog progression advantage
+    my_frog_score = 0.0
+    opponent_frog_score = 0.0
+    my_frogs = board.red_frog_coords if my_color == PlayerColor.RED else board.blue_frog_coords
+    opponent_frogs = board.blue_frog_coords if my_color == PlayerColor.RED else board.red_frog_coords
+    for coord in my_frogs:
+        my_frog_score += coord.r if my_color == PlayerColor.RED else (BOARD_N - 1 - coord.r)
+    for coord in opponent_frogs:
+        opponent_frog_score += coord.r if my_color == PlayerColor.BLUE else (BOARD_N - 1 - coord.r)  
+
+    # frog mobility advantage
+    my_mobility = len(board.get_legal_moves(my_color))
+    opponent_mobility = len(board.get_legal_moves(opponent_color))
+    mobility_advantage = my_mobility - opponent_mobility
+
+    # frog straggler penalty
+    straggler_penalty = 0
+    my_progression = []
+    for coord in my_frogs:
+        my_progression.append(coord.r if my_color == PlayerColor.RED else (BOARD_N - 1 - coord.r))
+    my_progression_avg = sum(my_progression) / len(my_progression)
+    my_progression_std = math.sqrt(sum((x - my_progression_avg) ** 2 for x in my_progression) / len(my_progression))
+    straggler_penalty = my_progression_std
+
+    # weighted sum
+    final_score = (w_progression * my_frog_score) + \
+        (w_opponent_progression * opponent_frog_score) + \
+        (w_mobility * mobility_advantage) + \
+        (w_straggler * straggler_penalty)
+
+    return final_score
 
 
 def alpha_beta_search(
