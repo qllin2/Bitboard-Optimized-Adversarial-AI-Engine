@@ -9,10 +9,8 @@ import math
 import time
 import random
 
-# define the search depth
-SEARCH_DEPTH = 5 # you can adjust this value as needed
+SEARCH_DEPTH = 11
 MAX_TURNS = constants.MAX_TURNS
-
 class Agent:
     """
     This class is the "entry point" for your agent, providing an interface to
@@ -34,21 +32,12 @@ class Agent:
         self._space_remaining = referee["space_remaining"]
         self._space_limit = referee["space_limit"]
 
-        match color:
-            case PlayerColor.RED:
-                print(f"Agent: I am playing as RED. Search depth: {SEARCH_DEPTH}")
-            case PlayerColor.BLUE:
-                print(f"Agent: I am playing as BLUE. Search depth: {SEARCH_DEPTH}")
-
     def action(self, **referee: dict) -> Action:
         """
         This method is called by the referee each time it is the agent's turn
         to take an action. It must always return an action object. 
         """
-        
-        # print(self._board)
-        # call the alpha-beta search
-        # self._transposition_table.clear()
+        # calculate the time budget
         remaining_turns = max(1, (MAX_TURNS - self._board.turns) / 2)
         time_budget = None
         time_remaining = referee["time_remaining"]
@@ -72,12 +61,12 @@ class Agent:
         best_action_overall = None
         best_eval_overall = -math.inf
         print(f"Agent {self._color}: Thinking time budget: {time_budget} seconds")
-        print(f"Agent {self._color}: Current board turns: {current_board.turns}")
+        print(f"Agent {self._color}: Current board turns: {current_board.turns + 1}")
         print(f"Agent {self._color}: Thinking start time: {thinking_start_time}")
         print(f"Agent {self._color}: Time remaining: {time_remaining} seconds")
         print(f"Agent {self._color}: Game phase: {game_phase}")
 
-        for current_depth_limit in range(1, 10):
+        for current_depth_limit in range(1, SEARCH_DEPTH):
             if (time.process_time() - thinking_start_time) > time_budget:
                 break
 
@@ -108,7 +97,6 @@ class Agent:
             else:
                 return None
 
-        print(f"Agent {self._color}: My turn. Current board turns: {self._board.turns + 1}") 
         print(f"Agent {self._color}: Chosen action by Alpha-Beta: {best_action_overall} with eval score: {best_eval_overall}")
         return best_action_overall
 
@@ -124,20 +112,3 @@ class Agent:
         
         # use Bitboard's apply_action method to update the board state
         self._board.apply_action(color, action)
-
-        # the following print code can be kept for debugging
-        # match action:
-        #     case MoveAction(coord, dirs):
-        #         dirs_text = ", ".join([str(dir) for dir in dirs])
-        #         # print(f"Testing: {color} played MOVE action:")
-        #         # print(f"  Coord: {coord}")
-        #         # print(f"  Directions: {dirs_text}")
-        #     case GrowAction():
-        #         # print(f"Testing: {color} played GROW action")
-        #     case _:
-        #         # This case should ideally not be reached if action is always valid
-        #         print(f"Agent {self._color}: Received unknown action type in update: {action}")
-        
-        # print("Current Board after update:")
-        # print(self._board)
-        # print(f"Board turns after update: {self._board.turns}")

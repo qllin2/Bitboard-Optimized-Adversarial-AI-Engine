@@ -24,14 +24,14 @@ class Bitboard:
     Bitboard is an efficient way to represent the board state using binary bits.
     """
     
-    ZOBRIST_TABLE = None # Class variable for the Zobrist hash table
+    ZOBRIST_TABLE = None
     
     def __init__(self, player_color: PlayerColor) -> None:
         """initialize an empty Bitboard"""
         # initialize the Zobrist hash table
         Bitboard._init_zobrist_table()
         
-        # initialize five bitboards: red frogs, blue frogs, and lilypads and two potential lilypads bitboards
+        # initialize five bitboards: red frogs, blue frogs, and lilypads
         self.red_frogs = 0
         self.blue_frogs = 0
         self.lilypads = 0
@@ -191,7 +191,6 @@ class Bitboard:
     def get_legal_moves(self, color: PlayerColor) -> list[Action]:
         """get all legal moves for the current player"""
         legal_moves = []
-        frogs_bb = self.red_frogs if color == PlayerColor.RED else self.blue_frogs
         
         # define movement directions based on player color
         if color == PlayerColor.RED:
@@ -320,7 +319,7 @@ class Bitboard:
                 self.turns += 1
                 return True # Successfully moved
             
-            # single direction in the list: could be a 1-square step or a 2-square jump
+            # single direction in the list: could be a single step or a jump
             elif len(directions) == 1:
                 dr, dc = self._direction_to_offset(directions[0])
                 if self.has_lilypad(curr_row + dr, curr_col + dc):
