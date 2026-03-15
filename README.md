@@ -1,4 +1,4 @@
-# High-Performance Game AI & Pathfinding Agent
+# Bitboard-Optimized Adversarial AI Engine
 
 ![Language](https://img.shields.io/badge/language-Python-blue.svg)
 ![Algorithm](https://img.shields.io/badge/algorithm-A*-green.svg)
